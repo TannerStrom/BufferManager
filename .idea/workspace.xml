@@ -1,17 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="0e0259f6-6873-4498-bdab-4b2514522958" name="Default" comment="">
-      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/src/bufmgr/PageUnpinnedException.java" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/Makefile" afterPath="$PROJECT_DIR$/Makefile" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/bufmgr/BufHashTbl.java" afterPath="$PROJECT_DIR$/src/bufmgr/BufHashTbl.java" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/bufmgr/BufMgr.java" afterPath="$PROJECT_DIR$/src/bufmgr/BufMgr.java" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/bufmgr/Descriptor.java" afterPath="$PROJECT_DIR$/src/bufmgr/Descriptor.java" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/bufmgr/FrameMgr.java" afterPath="$PROJECT_DIR$/src/bufmgr/FrameMgr.java" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/diskmgr/DiskMgr.java" afterPath="$PROJECT_DIR$/src/diskmgr/DiskMgr.java" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/tests/BMTest.java" afterPath="$PROJECT_DIR$/src/tests/BMTest.java" />
-    </list>
+    <list default="true" id="0e0259f6-6873-4498-bdab-4b2514522958" name="Default" comment="" />
     <ignored path="BufferManager.iws" />
     <ignored path=".idea/workspace.xml" />
     <ignored path="$PROJECT_DIR$/out/" />
@@ -721,7 +711,7 @@
       <created>1455235513899</created>
       <option name="number" value="Default" />
       <updated>1455235513899</updated>
-      <workItem from="1455235519068" duration="27006000" />
+      <workItem from="1455235519068" duration="27089000" />
     </task>
     <task id="LOCAL-00001" summary="1">
       <created>1455400576854</created>
@@ -733,11 +723,11 @@
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="27006000" />
+    <option name="totallyTimeSpent" value="27089000" />
   </component>
   <component name="ToolWindowManager">
-    <frame x="112" y="28" width="964" height="773" extended-state="0" />
-    <editor active="true" />
+    <frame x="112" y="28" width="964" height="773" extended-state="1" />
+    <editor active="false" />
     <layout>
       <window_info id="Palette" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="10" side_tool="false" content_ui="tabs" />
