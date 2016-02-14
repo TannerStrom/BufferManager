@@ -23,5 +23,11 @@ public class Descriptor {
         return dirtybit;
     }
 
+    public void setDirtybit(){
+        dirtybit = true;
+    }
 
+    public void setClean(){
+        dirtybit = false;
+    }
 }

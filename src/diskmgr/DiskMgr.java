@@ -2,6 +2,7 @@
 
 package diskmgr;
 
+import bufmgr.PageUnpinnedException;
 import chainexception.ChainException;
 import global.*;
 
@@ -74,16 +75,16 @@ public class DiskMgr implements GlobalConst {
         File DBfile = new File(name);
         DBfile.delete();
 
-    // Creaat a random access file
+        // Creaat a random access file
         fp = new RandomAccessFile(fname, "rw");
 
-    // Make the file num_pages pages long, filled with zeroes.
+        // Make the file num_pages pages long, filled with zeroes.
         fp.seek((long) (num_pages * PAGE_SIZE - 1));    //Sets the file-pointer offset, measured from the beginning of this file, at which the next read or write occurs
         fp.writeByte(0);
 
-    // Initialize space map and directory pages.
+        // Initialize space map and directory pages.
 
-    // Initialize the first DB page
+        // Initialize the first DB page
         Page apage = new Page();
         PageId pageId = new PageId();
         pageId.pid = 0;
@@ -94,8 +95,8 @@ public class DiskMgr implements GlobalConst {
         firstpg.setNumDBPages(num_pages);
         unpinPage(pageId, true /*dirty*/);
 
-    // Calculate how many pages are needed for the space map.  Reserve pages
-    // 0 and 1 and as many additional pages for the space map as are needed.
+        // Calculate how many pages are needed for the space map.  Reserve pages
+        // 0 and 1 and as many additional pages for the space map as are needed.
         int num_map_pages = (num_pages + bits_per_page - 1) / bits_per_page;
 
         set_bits(pageId, 1 + num_map_pages, 1);
@@ -164,7 +165,7 @@ public class DiskMgr implements GlobalConst {
         if ((pageNo.pid < 0) || (pageNo.pid >= num_pages))
             throw new InvalidPageNumberException(null, "INVALID_PAGEID_NUMBER");
 
-       // Seek to the correct page
+        // Seek to the correct page
         fp.seek((long) (pageNo.pid * PAGE_SIZE));
 
         // Write the appropriate number of bytes.
@@ -185,48 +186,48 @@ public class DiskMgr implements GlobalConst {
      * @throws IllegalArgumentException if run_size is invalid
      * @throws IllegalStateException    if the database is full
      */
-    public PageId allocate_page(int run_size) throws ChainException, IOException {
+    public PageId allocate_page(int run_size) throws ChainException, IOException, PageUnpinnedException {
 
-    // validate the run size
+        // validate the run size
         if ((run_size < 1) || (run_size > num_pages)) {
             throw new IllegalArgumentException("Invalid run size; allocate aborted");
         }
 
-    // calculate the run in the space map
+        // calculate the run in the space map
         int num_map_pages = (num_pages + bits_per_page - 1) / bits_per_page;
         int current_run_start = 0;
         int current_run_length = 0;
 
-    // this loop goes over each page in the space map
+        // this loop goes over each page in the space map
         PageId pgid = new PageId();
         Page apage = new Page();
         for (int i = 0; i < num_map_pages; ++i) {
 
-    // pin the space-map page
+            // pin the space-map page
             pgid.pid = i + 1;
             Minibase.BufferManager.pinPage(pgid, apage, PIN_DISKIO);
 
-    // get the num of bits on current page
+            // get the num of bits on current page
             int num_bits_this_page = num_pages - i * bits_per_page;
             if (num_bits_this_page > bits_per_page)
                 num_bits_this_page = bits_per_page;
 
-    // Walk the page looking for a sequence of 0 bits of the appropriate
-    // length. The outer loop steps through the page's bytes, the inner
-    // one steps through each byte's bits.
+            // Walk the page looking for a sequence of 0 bits of the appropriate
+            // length. The outer loop steps through the page's bytes, the inner
+            // one steps through each byte's bits.
             byte[] pagebuf = apage.getData();
             for (int byteptr = 0; num_bits_this_page > 0
                     && current_run_length < run_size; byteptr++) {
 
-    // initialize bit mask
+                // initialize bit mask
                 Byte mask = new Byte(new Integer(1).byteValue());
                 byte tmpmask = mask.byteValue();
 
-    // search the page for an empty run
+                // search the page for an empty run
                 while (mask.intValue() != 0 && (num_bits_this_page > 0)
                         && (current_run_length < run_size)) {
 
-    // if a non-empty page is found
+                    // if a non-empty page is found
                     if ((pagebuf[byteptr] & tmpmask) != 0) {
                         current_run_start += current_run_length + 1;
                         current_run_length = 0;
@@ -234,7 +235,7 @@ public class DiskMgr implements GlobalConst {
                         current_run_length++;
                     }
 
-    // advance to the next page
+                    // advance to the next page
                     tmpmask <<= 1;
                     mask = new Byte(tmpmask);
                     num_bits_this_page--;
@@ -243,17 +244,17 @@ public class DiskMgr implements GlobalConst {
 
             }   // inner loop
 
-    // unpin the current space-map page
+            // unpin the current space-map page
             Minibase.BufferManager.unpinPage(pgid, UNPIN_CLEAN);
 
         }   // outer loop
 
-    // check for disk full exception
+        // check for disk full exception
         if (current_run_length < run_size) {
             throw new IllegalStateException("Not enough space left; allocate aborted");
         }
 
-    // update the space map and return the resulting page id
+        // update the space map and return the resulting page id
         PageId firstpg = new PageId(current_run_start);
         set_bits(firstpg, run_size, 1);
         return firstpg;
@@ -297,7 +298,7 @@ public class DiskMgr implements GlobalConst {
         int current_run_length = 0;
 
 
-    // This loop goes over each page in the space map.
+        // This loop goes over each page in the space map.
         PageId pgid = new PageId();
         byte[] pagebuf;
         int byteptr;
@@ -305,7 +306,7 @@ public class DiskMgr implements GlobalConst {
         for (int i = 0; i < num_map_pages; ++i) {   // start forloop01
 
             pgid.pid = 1 + i;
-    // Pin the space-map page.
+            // Pin the space-map page.
 
             Page apage = new Page();
             pinPage(pgid, apage, false /*read disk*/);
@@ -313,14 +314,14 @@ public class DiskMgr implements GlobalConst {
             pagebuf = apage.getpage();
             byteptr = 0;
 
-    // get the num of bits on current page
+            // get the num of bits on current page
             int num_bits_this_page = num_pages - i * bits_per_page;
             if (num_bits_this_page > bits_per_page)
                 num_bits_this_page = bits_per_page;
 
-    // Walk the page looking for a sequence of 0 bits of the appropriate
-    // length.  The outer loop steps through the page's bytes, the inner
-    // one steps through each byte's bits.
+            // Walk the page looking for a sequence of 0 bits of the appropriate
+            // length.  The outer loop steps through the page's bytes, the inner
+            // one steps through each byte's bits.
 
             for (; num_bits_this_page > 0 && current_run_length < run_size; ++byteptr) {    // start forloop02
 
@@ -424,7 +425,7 @@ public class DiskMgr implements GlobalConst {
         if ((start_page_num.pid < 0) || (start_page_num.pid >= num_pages))
             throw new InvalidPageNumberException(null, " DB bad page number");
 
-    // Does the file already exist?
+        // Does the file already exist?
 
         if (get_file_entry(fname) != null)
             throw new DuplicateEntryException(null, "DB fileentry already exists");
@@ -437,14 +438,14 @@ public class DiskMgr implements GlobalConst {
         PageId nexthpid = new PageId(0);
         DBHeaderPage dp;
         do {    // Start DO01
-    //  System.out.println("start do01");
+            //  System.out.println("start do01");
             hpid.pid = nexthpid.pid;
 
-    // Pin the header page
+            // Pin the header page
             pinPage(hpid, apage, false /*read disk*/);
 
-    // This complication is because the first page has a different
-    // structure from that of subsequent pages.
+            // This complication is because the first page has a different
+            // structure from that of subsequent pages.
             if (hpid.pid == 0) {
                 dp = new DBFirstPage();
                 ((DBFirstPage) dp).openPage(apage);
@@ -467,13 +468,13 @@ public class DiskMgr implements GlobalConst {
                 free_slot = entry;
                 found = true;
             } else if (nexthpid.pid != INVALID_PAGEID) {
-    // We only unpin if we're going to continue looping.
+                // We only unpin if we're going to continue looping.
                 unpinPage(hpid, false /* undirty*/);
             }
 
         } while ((nexthpid.pid != INVALID_PAGEID) && (!found));     // End of DO01
 
-    // Have to add a new header page if possible.
+        // Have to add a new header page if possible.
         if (!found) {
             try {
                 allocate_page(nexthpid);
@@ -482,11 +483,11 @@ public class DiskMgr implements GlobalConst {
                 e.printStackTrace();
             }
 
-    // Set the next-page pointer on the previous directory page.
+            // Set the next-page pointer on the previous directory page.
             dp.setNextPage(nexthpid);
             unpinPage(hpid, true /* dirty*/);
 
-    // Pin the newly-allocated directory page.
+            // Pin the newly-allocated directory page.
             hpid.pid = nexthpid.pid;
 
             pinPage(hpid, apage, true/*no diskIO*/);
@@ -495,10 +496,10 @@ public class DiskMgr implements GlobalConst {
             free_slot = 0;
         }
 
-    // At this point, "hpid" has the page id of the header page with the free
-    // slot; "pg" points to the pinned page; "dp" has the directory_page
-    // pointer; "free_slot" is the entry number in the directory where we're
-    // going to put the new file entry.
+        // At this point, "hpid" has the page id of the header page with the free
+        // slot; "pg" points to the pinned page; "dp" has the directory_page
+        // pointer; "free_slot" is the entry number in the directory where we're
+        // going to put the new file entry.
 
         dp.setFileEntry(start_page_num, fname, free_slot);
 
@@ -530,11 +531,11 @@ public class DiskMgr implements GlobalConst {
         do {    // startDO01
             hpid.pid = nexthpid.pid;
 
-    // Pin the header page.
+            // Pin the header page.
             pinPage(hpid, apage, false/*read disk*/);
 
-    // This complication is because the first page has a different
-    // structure from that of subsequent pages.
+            // This complication is because the first page has a different
+            // structure from that of subsequent pages.
             if (hpid.pid == 0) {
                 dp = new DBFirstPage();
                 ((DBFirstPage) dp).openPage(apage);
@@ -567,7 +568,7 @@ public class DiskMgr implements GlobalConst {
         if (!found)     // Entry not found - nothing deleted
             throw new FileEntryNotFoundException(null, "DB file not found");
 
-    // Have to delete record at hpnum:slot
+        // Have to delete record at hpnum:slot
         tmppid.pid = INVALID_PAGEID;
         dp.setFileEntry(tmppid, "\0", slot);
 
@@ -633,7 +634,7 @@ public class DiskMgr implements GlobalConst {
 
         } while ((nexthpid.pid != INVALID_PAGEID) && (!found)); // End of DO01
 
-        if (!found)   // Entry not found - don't post error, just fail.
+        if (!found)     // Entry not found - don't post error, just fail.
         {
             //  System.out.println("entry NOT found");
             return null;
@@ -675,27 +676,27 @@ public class DiskMgr implements GlobalConst {
         int num_map_pages = (num_pages + bits_per_page - 1) / bits_per_page;
         int bit_number = 0;
 
-    // This loop goes over each page in the space map.
+        // This loop goes over each page in the space map.
         PageId pgid = new PageId();
         System.out.println("num_map_pages = " + num_map_pages);
         System.out.println("num_pages = " + num_pages);
         for (int i = 0; i < num_map_pages; i++) {   //start forloop01
 
             pgid.pid = 1 + i;       //space map starts at page1
-    // Pin the space-map page.
+            // Pin the space-map page.
             Page apage = new Page();
             pinPage(pgid, apage, false/*read disk*/);
 
-    // How many bits should we examine on this page?
+            // How many bits should we examine on this page?
             int num_bits_this_page = num_pages - i * bits_per_page;
             System.out.println("num_bits_this_page = " + num_bits_this_page);
             System.out.println("num_pages = " + num_pages);
             if (num_bits_this_page > bits_per_page)
                 num_bits_this_page = bits_per_page;
 
-    // Walk the page looking for a sequence of 0 bits of the appropriate
-    // length.  The outer loop steps through the page's bytes, the inner
-    // one steps through each byte's bits.
+            // Walk the page looking for a sequence of 0 bits of the appropriate
+            // length.  The outer loop steps through the page's bytes, the inner
+            // one steps through each byte's bits.
 
             int pgptr = 0;
             byte[] pagebuf = apage.getpage();
@@ -738,18 +739,18 @@ public class DiskMgr implements GlobalConst {
         if ((start_page.pid < 0) || (start_page.pid + run_size > num_pages))
             throw new InvalidPageNumberException(null, "Bad page number");
 
-    // Locate the run within the space map.
+        // Locate the run within the space map.
         int first_map_page = start_page.pid / bits_per_page + 1;
         int last_map_page = (start_page.pid + run_size - 1) / bits_per_page + 1;
         int first_bit_no = start_page.pid % bits_per_page;
 
-    // The outer loop goes over all space-map pages we need to touch.
+        // The outer loop goes over all space-map pages we need to touch.
 
         for (PageId pgid = new PageId(first_map_page);
              pgid.pid <= last_map_page;
              pgid.pid = pgid.pid + 1, first_bit_no = 0) {   //Start forloop01
 
-    // Pin the space-map page.
+            // Pin the space-map page.
             Page pg = new Page();
 
 
@@ -758,7 +759,7 @@ public class DiskMgr implements GlobalConst {
 
             byte[] pgbuf = pg.getpage();
 
-    // Locate the piece of the run that fits on this page.
+            // Locate the piece of the run that fits on this page.
             int first_byte_no = first_bit_no / 8;
             int first_bit_offset = first_bit_no % 8;
             int last_bit_no = first_bit_no + run_size - 1;
@@ -768,7 +769,7 @@ public class DiskMgr implements GlobalConst {
 
             int last_byte_no = last_bit_no / 8;
 
-    // This loop actually flips the bits on the current page.
+            // This loop actually flips the bits on the current page.
             int cur_posi = first_byte_no;
             for (; cur_posi <= last_byte_no; ++cur_posi, first_bit_offset = 0) {    //start forloop02
 
@@ -797,7 +798,7 @@ public class DiskMgr implements GlobalConst {
 
             }   //end of forloop02
 
-    // Unpin the space-map page.
+            // Unpin the space-map page.
 
             unpinPage(pgid, true /*dirty*/);
 

@@ -1,5 +1,6 @@
 package bufmgr;
 
+import chainexception.ChainException;
 import diskmgr.DiskMgr;
 import diskmgr.FileIOException;
 import diskmgr.InvalidPageNumberException;
@@ -63,8 +64,11 @@ public class BufMgr implements GlobalConst {
      * @param page the pointer point to the page.
      * @param emptyPage true (empty page); false (non-empty page)
      */
-    public Page pinPage(PageId pageno, Page page, boolean emptyPage) {
+    public Page pinPage(PageId pageno, Page page, boolean emptyPage) throws ChainException {
+        System.out.println("\n===========PinPage===========");
         int fr = hashTable.isExist(pageno);
+        System.out.println("fr = "+fr);
+
         if(fr > 0) {
             bufDescriptor[fr].increaseCount();
 
@@ -73,74 +77,79 @@ public class BufMgr implements GlobalConst {
             }
         }
         else {
-            fr = fm.generateFrame();
+            fr = fm.generateFrame(pageno, hashTable);
+            System.out.println("generateFrame # fr = "+fr);
 
-
-
-
-
-            /*if (bufAt >= numBuffers){
-                //buffer pool is full
-                PageId remId = replaceCand.remove(0);
-                fr = hashTable.isExist(remId);
-                if (bufDescriptor[fr].getDirtyBit()){
-                    try {
-                        Minibase.DiskManager.write_page(remId, bufPool[fr]);
-                    } catch (Exception e) {e.printStackTrace();}
-                }
-                //discard page and remove item from descriptor
-
-
-
-            }
-            else{
-                //unused frame
-                fr = bufAt++;
-                Descriptor d = new Descriptor(pageno);
-                bufDescriptor[fr] = d;
-
-                try {
-                    Minibase.DiskManager.read_page(pageno, page);
-                } catch (Exception e) {e.printStackTrace();}
-
-                bufPool[fr] = page;
-
-                hashTable.insert(pageno, fr);
+            if(bufDescriptor[fr] != null && bufDescriptor[fr].getDirtyBit()) {
+                flushPage(bufDescriptor[fr].getPageNo());
+                hashTable.remove(bufDescriptor[fr].getPageNo());
             }
 
-            bufDescriptor[fr].increaseCount();*/
+            Descriptor d= new Descriptor(pageno);
+            bufDescriptor[fr] = d;
+
+
+
+            try {
+                Minibase.DiskManager.read_page(pageno, page);
+//            } catch (Exception e) {e.printStackTrace();}
+            } catch (Exception e) {System.out.println("ChainException in pinPage");}
+
+            bufPool[fr] = page;
+
+            hashTable.insert(pageno, fr);
+
+            bufDescriptor[fr].increaseCount();
+            System.out.println("Count = "+bufDescriptor[fr].getPin_count());
+
         }
 
-
-        //1. construct descriptor for the page and store it
-        Descriptor dspr = new Descriptor(pageno);
-
-
-
-
-
-        return null;
+        return bufPool[fr];
 
     }
-
-
 
 
     /**
      * Unpin a page specified by a pageId.
      * This method should be called with dirty==true if the client has * modified the page.
      * If so, this call should set the dirty bit
-     * for this frame.
+     * for this frame. #
      * Further, if pin_count>0, this method should
-     * decrement it.
+     * decrement it. #
      *If pin_count=0 before this call, throw an exception
-     * to report error.
+     * to report error. #
      *(For testing purposes, we ask you to throw
      * an exception named PageUnpinnedException in case of error.) *
      * @param pageno page number in the Minibase.
      * @param dirty the dirty bit of the frame
      */
-    public void unpinPage(PageId pageno, boolean dirty) {}
+    public void unpinPage(PageId pageno, boolean dirty) throws PageUnpinnedException, ChainException {
+        System.out.println("\n===========UnPinPage===========");
+
+        int fr = hashTable.isExist(pageno);
+        if (fr < 0){
+            //Page not found in buffer pool
+            return;
+        }
+        if (bufDescriptor[fr].getPin_count() == 0){
+            System.out.println("bufDescriptor[fr].getPin_count() = "+bufDescriptor[fr].getPin_count());
+            throw new PageUnpinnedException();
+        }
+        if (bufDescriptor[fr].getPin_count() > 0) {
+            bufDescriptor[fr].decreaseCount();
+            if (bufDescriptor[fr].getPin_count() == 0){
+                fm.addCand(pageno);
+            }
+        }
+
+        if (dirty == true) {
+            bufDescriptor[fr].setDirtybit();
+        }
+
+
+
+    }
+
     /**
      * Allocate new pages.
      * Call DB object to allocate a run of new pages and
@@ -153,32 +162,82 @@ public class BufMgr implements GlobalConst {
      * @param howmany total number of allocated new pages. *
      * @return the first page id of the new pages.__ null, if error. */
     public PageId newPage(Page firstpage, int howmany) {
-        return null;
+        System.out.println("\n===========NewPage===========");
+
+        System.out.println("getNumUnpinned() = "+getNumUnpinned());
+        System.out.println("howmany = "+howmany);
+
+        if (getNumUnpinned() == 0){
+            return null;
+        }
+
+        PageId pid = new PageId();
+        try {
+            Minibase.DiskManager.allocate_page(pid, howmany);
+            pinPage(pid, firstpage, false);
+       // } catch (Exception e) {e.printStackTrace();}
+        } catch (Exception e) {System.out.println("Exception in newPage");}
+
+        return pid;
     }
+
     /**
      * This method should be called to delete a page that is on disk.
      * This routine must call the method in diskmgr package to
      * deallocate the page. *
      * @param globalPageId the page number in the data base. */
-    public void freePage(PageId globalPageId) {}
+
+    public void freePage(PageId globalPageId) throws ChainException{
+        System.out.println("\n===========FreePage===========");
+
+        try {
+            Minibase.DiskManager.deallocate_page(globalPageId, 1);
+        } catch (Exception e) {e.printStackTrace();}
+    }
+
     /**
      * Used to flush a particular page of the buffer pool to disk.
      * This method calls the write_page method of the diskmgr package. *
      * @param pageid the page number in the database. */
-    public void flushPage(PageId pageid) {}
+    public void flushPage(PageId pageid) {
+        System.out.println("\n===========flushPage===========");
+
+        int fr = hashTable.isExist(pageid);
+        if (fr <0)
+            return;
+
+        try {
+            Minibase.DiskManager.write_page(pageid, bufPool[fr]);
+        } catch (Exception e) {e.printStackTrace();}
+
+        bufDescriptor[fr].setClean();
+    }
+
     /**
      * Used to flush all dirty pages in the buffer pool to disk *
      */
-    public void flushAllPages() {}
+    public void flushAllPages() {
+        System.out.println("\n===========flushAllPage===========");
+
+        for (int i = 0; i < numBuffers; i++){
+            if (fm.indicator[i] == true)
+                flushPage(bufDescriptor[i].getPageNo());
+        }
+
+    }
+
     /**
      * Returns the total number of buffer frames. */
     public int getNumBuffers() {
-        return 0;
+        return fm.numbufs;
     }
+
     /**
      * Returns the total number of unpinned buffer frames. */
     public int getNumUnpinned() {
-        return 0;
+//        System.out.println("numbuf = "+numBuffers);
+//        System.out.println(fm.numAvailableFr);
+        return fm.getNumAvailableFr();
     }
 
 }

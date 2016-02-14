@@ -1,5 +1,5 @@
-JDKPATH = /usr
-LIBPATH = lib/bufmgrAssign.jar
+JDKPATH = /Library/Java/JavaVirtualMachines/jdk1.8.0_25.jdk/Contents/Home
+LIBPATH = /Users/Nicole/Documents/IntelliJ/BufferManager/lib/bufmgrAssign.jar
 
 CLASSPATH = .:..:$(LIBPATH)
 BINPATH = $(JDKPATH)/bin
@@ -15,4 +15,3 @@ compile:src/*/*.java
 
 xx : compile
 	$(JAVA) -cp $(CLASSPATH):bin tests.BMTest
-
