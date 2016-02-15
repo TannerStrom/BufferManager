@@ -2,6 +2,8 @@
 
 package diskmgr;
 
+import bufmgr.BufferPoolExceededException;
+import bufmgr.HashEntryNotFoundException;
 import bufmgr.PageUnpinnedException;
 import chainexception.ChainException;
 import global.*;
@@ -205,7 +207,13 @@ public class DiskMgr implements GlobalConst {
 
             // pin the space-map page
             pgid.pid = i + 1;
-            Minibase.BufferManager.pinPage(pgid, apage, PIN_DISKIO);
+            try {
+                Minibase.BufferManager.pinPage(pgid, apage, PIN_DISKIO);
+            } catch (HashEntryNotFoundException e) {
+                e.printStackTrace();
+            } catch (BufferPoolExceededException e) {
+                e.printStackTrace();
+            }
 
             // get the num of bits on current page
             int num_bits_this_page = num_pages - i * bits_per_page;
@@ -245,7 +253,11 @@ public class DiskMgr implements GlobalConst {
             }   // inner loop
 
             // unpin the current space-map page
-            Minibase.BufferManager.unpinPage(pgid, UNPIN_CLEAN);
+            try {
+                Minibase.BufferManager.unpinPage(pgid, UNPIN_CLEAN);
+            } catch (HashEntryNotFoundException e) {
+                e.printStackTrace();
+            }
 
         }   // outer loop
 

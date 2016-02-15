@@ -38,11 +38,8 @@ public class BufHashTbl {
         }
         else{
             Iterator iter = directory[index].pairs.iterator();
-            while(iter.hasNext()) {
-                int[] pair = (int[]) iter.next();
-                if(pair[0] == pageNo.pid)
-                    directory[index].pairs.remove(pair);
-            }
+            int[] pair = {pageNo.pid, index};
+            directory[index].pairs.remove(pair);
         }
     }
 
