@@ -3,6 +3,7 @@ package bufmgr;
 import global.PageId;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 
 /**
  * Created by Yao on 2/13/16.
@@ -33,18 +34,30 @@ public class FrameMgr {
             numAvailableFr--;
             return fr;
         }
-        else  if (! replaceCand.isEmpty()){
+        else  if (!replaceCand.isEmpty()){
             //replacement candidates
             //no change in indicator and numAvailableFr
             int min = Integer.MAX_VALUE;
             fr = -1;
-            for(int i = 0; i< numbufs; i++){
-                if (indicator[i] == true){
-                    if (lfu[i] < min) {
-                        fr = i;
-                    }
+            int i = 0, deli = 0;
+            int size = replaceCand.size();
+            System.out.println("replaceCand.size = "+size);
+            while(i < size) {
+                System.out.println("i = "+i);
+                System.out.println("get{i} = "+replaceCand.get(i).pid);
+                int frameNo = hashTbl.isExist(replaceCand.get(i));
+                System.out.println("frno = "+frameNo);
+
+                if (lfu[frameNo]<min){
+                    fr = frameNo;
+                    min = lfu[frameNo];
+                    deli = i;
                 }
+                i++;
             }
+            replaceCand.remove(deli);
+            System.out.println("replaceCand.size = "+replaceCand.size());
+
             return fr;
         }
         else{

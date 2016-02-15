@@ -136,8 +136,7 @@ class BMDriver extends TestDriver implements GlobalConst {
 		// We choose this number to ensure that at least one page will have to be
 		// written during this test.
 		boolean status = OK;
-		int numPages = Minibase.BufferManager.getNumUnpinned() + 1;
-		System.out.println("numPages = "+numPages);
+		int numPages = Minibase.BufferManager.getNumUnpinned() - 1;
 		System.out.println("numPages = "+numPages);
 		Page pg = new Page();
 		PageId pid; 
@@ -145,6 +144,7 @@ class BMDriver extends TestDriver implements GlobalConst {
 		PageId firstPid = new PageId(); 
 
 		System.out.print("  - Allocate a bunch of new pages\n");
+
 
 		try {
 			firstPid = Minibase.BufferManager.newPage( pg, numPages );
@@ -200,7 +200,6 @@ class BMDriver extends TestDriver implements GlobalConst {
 					status = FAIL;
 				}
 				try {
-					System.out.println("numAvFr = "+Minibase.BufferManager.getNumUnpinned());
 					System.out.println("~data/pid = "+Convert.getIntValue (0, pg.getpage())+"/"+pid.pid);
 				} catch (IOException e) {
 					e.printStackTrace();
@@ -275,11 +274,11 @@ class BMDriver extends TestDriver implements GlobalConst {
 		if (status == OK)
 			System.out.print ("  - Free the pages again\n");
 
-		for ( pid.pid=firstPid.pid; pid.pid < lastPid.pid; 
+		for ( pid.pid=firstPid.pid; pid.pid < lastPid.pid;
 		pid.pid = pid.pid + 1) {
 
 			try {
-				Minibase.BufferManager.freePage( pid ); 
+				Minibase.BufferManager.freePage( pid );
 			}
 			catch (Exception e) {
 				status = FAIL;
