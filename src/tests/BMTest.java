@@ -223,7 +223,7 @@ class BMDriver extends TestDriver implements GlobalConst {
 			}
 		}
 
-		System.out.println("==============status = "+status+" =================");
+//		System.out.println("==============status = "+status+" =================");
 
 		if ( status == OK )
 			System.out.print ("  - Read that something back from each one\n" + 

@@ -267,7 +267,9 @@ public class BufMgr implements GlobalConst {
         int fr = hashTable.isExist(pid);
         if (fr < 0){
 //            Page not found in buffer pool, return
-
+            try {
+                Minibase.DiskManager.deallocate_page(pid, 1);
+            } catch (Exception e) {}
             return;
         }
         if (bufDescriptor[fr].getPin_count() != 0){
