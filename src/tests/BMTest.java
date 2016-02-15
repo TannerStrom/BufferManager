@@ -111,12 +111,12 @@ class BMDriver extends TestDriver implements GlobalConst {
 		//The following runs all the test functions 
 
 		//Running test1() to test6()
-		if (!test1()) { _passAll = FAIL; }    
-//		if (!test2()) { _passAll = FAIL; }
-//		if (!test3()) { _passAll = FAIL; }
-//		if (!test4()) { _passAll = FAIL; }
-//		if (!test5()) { _passAll = FAIL; }
-//		if (!test6()) { _passAll = FAIL; }
+		if (!test1()) { _passAll = FAIL; }
+		if (!test2()) { _passAll = FAIL; }
+		if (!test3()) { _passAll = FAIL; }
+		if (!test4()) { _passAll = FAIL; }
+		if (!test5()) { _passAll = FAIL; }
+		if (!test6()) { _passAll = FAIL; }
 
 		return _passAll;
 	}
@@ -136,8 +136,8 @@ class BMDriver extends TestDriver implements GlobalConst {
 		// We choose this number to ensure that at least one page will have to be
 		// written during this test.
 		boolean status = OK;
-		int numPages = Minibase.BufferManager.getNumUnpinned() - 1;
-		System.out.println("numPages = "+numPages);
+		int numPages = Minibase.BufferManager.getNumUnpinned() + 1;
+//		System.out.println("numPages = "+numPages);
 		Page pg = new Page();
 		PageId pid; 
 		PageId lastPid;
@@ -157,6 +157,7 @@ class BMDriver extends TestDriver implements GlobalConst {
 		}
 
 
+
 		// Unpin that first page... to simplify our loop.
 		try {
 			Minibase.BufferManager.unpinPage(firstPid, false /*not dirty*/);
@@ -169,12 +170,15 @@ class BMDriver extends TestDriver implements GlobalConst {
 
 		System.out.print("  - Write something on each one\n");
 
+//		System.out.println("_______1pid = "+firstPid.pid+" lasrPid = "+(firstPid.pid+numPages));
+
 		pid = new PageId();
 		lastPid = new PageId();
 
 		for ( pid.pid = firstPid.pid, lastPid.pid = pid.pid+numPages; 
 		status == OK && pid.pid < lastPid.pid; 
 		pid.pid = pid.pid + 1 ) {
+//			System.out.println("~~~~~~~~~~ now pid = "+pid.pid);
 
 			try {
 				Minibase.BufferManager.pinPage( pid, pg, /*emptyPage:*/ false);
@@ -199,11 +203,11 @@ class BMDriver extends TestDriver implements GlobalConst {
 					System.err.print ("*** Convert value failed\n");
 					status = FAIL;
 				}
-				try {
-					System.out.println("~data/pid = "+Convert.getIntValue (0, pg.getpage())+"/"+pid.pid);
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
+//				try {
+//					System.out.println("~data/pid = "+Convert.getIntValue (0, pg.getpage())+"/"+pid.pid);
+//				} catch (IOException e) {
+//					e.printStackTrace();
+//				}
 
 				if (status == OK) {
 					try {
@@ -218,6 +222,8 @@ class BMDriver extends TestDriver implements GlobalConst {
 				}
 			}
 		}
+
+		System.out.println("==============status = "+status+" =================");
 
 		if ( status == OK )
 			System.out.print ("  - Read that something back from each one\n" + 
@@ -248,7 +254,7 @@ class BMDriver extends TestDriver implements GlobalConst {
 					status = FAIL;
 				}
 
-				System.out.println("data/pid = "+data+"/"+pid.pid);
+//				System.out.println("data/pid = "+data+"/"+pid.pid);
 
 				if (status == OK) {
 					if (data != (pid.pid) + 99999) {
@@ -308,7 +314,7 @@ class BMDriver extends TestDriver implements GlobalConst {
 
 		// We choose this number to ensure that pinning this number of buffers
 		// should fail.
-		int numPages = Minibase.BufferManager.getNumUnpinned() + 1;
+		int numPages = Minibase.BufferManager.getNumUnpinned()+1;
 		Page pg = new Page ();
 		PageId pid, lastPid;
 		PageId firstPid = new PageId();

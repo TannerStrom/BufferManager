@@ -31,15 +31,25 @@ public class BufHashTbl {
         directory[index].pairs.add(pair);
     }
 
-    public void remove (PageId pageNo){
+    public void remove (PageId pageNo, Descriptor[] bufDescriptor){
         int index = HashFunc(pageNo.pid);
+        int fr = isExist(pageNo);
         if (directory[index] == null){
             directory[index] = new Bucket();
         }
         else{
+            int i = -1;
             Iterator iter = directory[index].pairs.iterator();
-            int[] pair = {pageNo.pid, index};
-            directory[index].pairs.remove(pair);
+            while (iter.hasNext()){
+                i++;
+                int[] p = (int [])iter.next();
+                if (p[0] == pageNo.pid && p[1] ==fr){
+                    break;
+                }
+            }
+            if (i > -1) {
+                directory[index].pairs.remove(i);
+            }
         }
     }
 

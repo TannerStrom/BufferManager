@@ -22,9 +22,6 @@ public class BufMgr implements GlobalConst {
     private Page[] bufPool;
 
     private Descriptor[] bufDescriptor;
-    int bufAt = 0;
-
-    private FrameMgr fm;
 
 
     /**
@@ -37,12 +34,14 @@ public class BufMgr implements GlobalConst {
      * @param replacementPolicy Name of the replacement policy, that parameter will be set to "LFU" (you can safely ignore this parameter as you will implement only one policy)
      */
     public BufMgr(int numbufs, int lookAheadSize, String replacementPolicy) {
+        hashTable = new BufHashTbl();
         numBuffers = numbufs;
         bufPool = new Page[numbufs];
-        hashTable = new BufHashTbl();
         bufDescriptor = new Descriptor[numbufs];
-        fm = new FrameMgr(numbufs);
-        bufAt = 0;
+//        for(int i = 0; i< numbufs; i++){
+//            bufPool[i] = new Page();
+//        }
+
     }
     /**
      * Pin a page.
@@ -62,74 +61,133 @@ public class BufMgr implements GlobalConst {
      * @param emptyPage true (empty page); false (non-empty page)
      */
     public Page pinPage(PageId pageno, Page page, boolean emptyPage) throws ChainException {
-//        System.out.println("\n===========PinPage===========");
-//        try {
-//            System.out.println(pageno.pid);
-//            System.out.println(Convert.getIntValue (0, page.getpage()));
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
+//        removeDup();
 
-//        if (bufDescriptor[0]!= null){
-//            System.out.println("bufDescriptor[0].getPin_count() = "+bufDescriptor[0].getPin_count());
-//
-//        }
-//        if (bufDescriptor[1]!= null){
-//            System.out.println("bufDescriptor[1].getPin_count() = "+bufDescriptor[1].getPin_count());
-//
-//        }
+        PageId pageNo = new PageId(pageno.pid);
 
-        int fr = hashTable.isExist(pageno);
-        //System.out.println("fr = "+fr);
+        int fr = hashTable.isExist(pageNo);
 
-        if(fr >= 0) {
-//            System.out.println("-------in pool----------");
-
+        if (fr >= 0){
+            //in the pool
+            //candidate handle
             bufDescriptor[fr].increaseCount();
-
-            if (bufDescriptor[fr].getPin_count() == 1){
-                fm.removeCand(pageno);
-            }
-            page.setpage( bufPool[fr].getpage());
+            page.setpage(bufPool[fr].getpage());
+            bufDescriptor[fr].increaseLru();
+            return bufPool[fr];
         }
-        else {
-            fr = fm.generateFrame(hashTable);
-//            System.out.println("generateFrame # fr = "+fr);
+        else{
+            //not in the pool: free frame, exceeded or a candidate
 
-            if (fr < 0){
-                throw new BufferPoolExceededException(null, "bufmgr.BufferPoolExceededException");
+            //free frame
+            for(int i = 0; i < numBuffers; i++){
+                if (bufDescriptor[i] == null){
+
+                    Page temp = new Page();
+
+                    try {
+                        Minibase.DiskManager.read_page(pageNo, temp);
+                    } catch (Exception e) {}
+
+                    page.setpage(temp.getpage());
+
+                    bufPool[i] = temp;
+
+                    hashTable.insert(pageNo, i);
+
+                    bufDescriptor[i] = new Descriptor(pageNo);
+
+                    bufDescriptor[i].increaseCount();
+
+                    bufDescriptor[i].increaseLru();
+                    return bufPool[i];
+                }
             }
 
-            if(bufDescriptor[fr] != null && bufDescriptor[fr].getDirtyBit()) {
-                flushPage(bufDescriptor[fr].getPageNo());
-                hashTable.remove(bufDescriptor[fr].getPageNo());
-                fm.removeCand(bufDescriptor[fr].getPageNo());
+            //cand
+            int index = -1;
+            for (int i = 0; i < numBuffers; i++){
+                if (bufDescriptor[i].getPin_count()==0){
+                    index = i;
+                    break;
+                }
             }
 
-            Descriptor d= new Descriptor(pageno);
-            bufDescriptor[fr] = d;
+            if (index > -1) {
 
-            Page temp = new Page();
+                for (int i = index+1; i < numBuffers; i++){
+                    if (bufDescriptor[i].getPin_count()==0){
+                        if (bufDescriptor[index].getLru() > bufDescriptor[i].getLru()){
+                            index = i;
+                        }
+                    }
+                }
 
-            try {
-                Minibase.DiskManager.read_page(pageno, temp);
-//            } catch (Exception e) {e.printStackTrace();}
-            } catch (Exception e) {}
+//                long timeNow = System.currentTimeMillis();
+//
+//                int freq = bufDescriptor[index].getLru();
+//                for (int i = 0; i< numBuffers; i++){
+//                    if (bufDescriptor[i].getLru() == freq && bufDescriptor[i].getTimeNow()<timeNow){
+//                        index = i;
+//                    }
+//                }
+//                for (int i = index+1; i < numBuffers; i++){
+//                    if (bufDescriptor[i].getPin_count()==0){
+//                        if (bufDescriptor[i].getLru() == freq && bufDescriptor[index].getPageNo().pid > bufDescriptor[i].getPageNo().pid){
+//                            index = i;
+//                        }
+//                    }
+//                }
 
-            page.setpage(temp.getpage());
 
-            bufPool[fr] = temp;
+                fr = index;
 
-            hashTable.insert(pageno, fr);
+                if (bufDescriptor[fr].getDirtyBit()) {
+                    flushPage(bufDescriptor[fr].getPageNo());
+                }
 
-            bufDescriptor[fr].increaseCount();
-//            System.out.println("Count = "+bufDescriptor[fr].getPin_count());
+                hashTable.remove(bufDescriptor[fr].getPageNo(), bufDescriptor);
+
+                Page temp = new Page();
+
+                try {
+                    Minibase.DiskManager.read_page(pageNo, temp);
+                } catch (Exception e) {}
+
+                page.setpage(temp.getpage());
+
+                bufPool[fr] = temp;
+
+                hashTable.insert(pageNo, fr);
+
+                bufDescriptor[fr] = new Descriptor(pageNo);
+                bufDescriptor[fr].increaseCount();
+                bufDescriptor[fr].increaseLru();
+                return bufPool[fr];
+            }
+
+            //exceed
+            throw new BufferPoolExceededException(null, "bufmgr.BufferPoolExceededException");
+
+
 
         }
 
-        fm.lfu[fr]++;
-        return bufPool[fr];
+    }
 
+    private void removeDup() {
+        for(int i = 0; i< numBuffers; i++){
+            for(int j = i; j < numBuffers; j++){
+                if (bufDescriptor[i] != null && bufDescriptor[j] != null) {
+                    if (bufDescriptor[i].getPageNo().pid == bufDescriptor[i].getPageNo().pid) {
+                        int temp = hashTable.isExist(bufDescriptor[i].getPageNo());
+                        if (i != temp)
+                            bufDescriptor[i] = null;
+                        if (j != temp)
+                            bufDescriptor[j] = null;
+                    }
+                }
+            }
+        }
     }
 
 
@@ -148,9 +206,9 @@ public class BufMgr implements GlobalConst {
      * @param dirty the dirty bit of the frame
      */
     public void unpinPage(PageId pageno, boolean dirty) throws ChainException {
-        //System.out.println("\n===========UnPinPage===========");
+        PageId pageNo = new PageId(pageno.pid);
 
-        int fr = hashTable.isExist(pageno);
+        int fr = hashTable.isExist(pageNo);
         if (fr < 0){
             //Page not found in buffer pool
 //            System.out.println("fr < 0 HashEntryNotFoundException");
@@ -162,16 +220,10 @@ public class BufMgr implements GlobalConst {
         }
         if (bufDescriptor[fr].getPin_count() > 0) {
             bufDescriptor[fr].decreaseCount();
-            if (bufDescriptor[fr].getPin_count() == 0){
-                fm.addCand(pageno);
-            }
         }
-
         if (dirty == true) {
             bufDescriptor[fr].setDirtybit();
         }
-
-
     }
 
     /**
@@ -186,11 +238,6 @@ public class BufMgr implements GlobalConst {
      * @param howmany total number of allocated new pages. *
      * @return the first page id of the new pages.__ null, if error. */
     public PageId newPage(Page firstpage, int howmany) {
-//        System.out.println("\n===========NewPage===========");
-//
-//        System.out.println("getNumUnpinned() = "+getNumUnpinned());
-//        System.out.println("howmany = "+howmany);
-
 
         if (getNumUnpinned() == 0){
             return null;
@@ -200,7 +247,7 @@ public class BufMgr implements GlobalConst {
         try {
             Minibase.DiskManager.allocate_page(pid, howmany);
             pinPage(pid, firstpage, false);
-       // } catch (Exception e) {e.printStackTrace();}
+            // } catch (Exception e) {e.printStackTrace();}
         } catch (Exception e) {}
 
         return pid;
@@ -214,29 +261,29 @@ public class BufMgr implements GlobalConst {
      * @param globalPageId the page number in the data base. */
 
     public void freePage(PageId globalPageId) throws ChainException{
-        //System.out.println("\n===========FreePage===========");
-        int fr = hashTable.isExist(globalPageId);
-        if (fr < 0){
-            //Page not found in buffer pool
-//            System.out.println("bufmgr.HashEntryNotFoundException");
 
-            throw new HashEntryNotFoundException(null, "bufmgr.HashEntryNotFoundException");
+        PageId pid = new PageId(globalPageId.pid);
+
+        int fr = hashTable.isExist(pid);
+        if (fr < 0){
+//            Page not found in buffer pool, return
+
+            return;
         }
-        else if (bufDescriptor[fr].getPin_count() != 0){
-            System.out.println("PagePinnedException");
+        if (bufDescriptor[fr].getPin_count() != 0){
+//            System.out.println("PagePinnedException");
 
             throw new PagePinnedException(null, "bufmgr.PagePinnedException");
         }
         else {
-            hashTable.remove(globalPageId);
+            hashTable.remove(pid, bufDescriptor);
             bufDescriptor[fr] = null;
             bufPool[fr] = null;
-            fm.removeFrame(globalPageId, hashTable);
         }
 
         try {
-            Minibase.DiskManager.deallocate_page(globalPageId, 1);
-        } catch (Exception e) {e.printStackTrace();}
+            Minibase.DiskManager.deallocate_page(pid, 1);
+        } catch (Exception e) {}
     }
 
     /**
@@ -244,9 +291,9 @@ public class BufMgr implements GlobalConst {
      * This method calls the write_page method of the diskmgr package. *
      * @param pageid the page number in the database. */
     public void flushPage(PageId pageid) throws ChainException{
-//        System.out.println("\n===========flushPage===========");
 
-        int fr = hashTable.isExist(pageid);
+        PageId pageId = new PageId(pageid.pid);
+        int fr = hashTable.isExist(pageId);
         if (fr < 0){
             //Page not found in buffer pool
 //            System.out.println("HashEntryNotFoundException");
@@ -255,8 +302,8 @@ public class BufMgr implements GlobalConst {
         Page p = new Page();
         p.setpage(bufPool[fr].getpage());
         try {
-            Minibase.DiskManager.write_page(pageid, p);
-        } catch (Exception e) {e.printStackTrace();}
+            Minibase.DiskManager.write_page(pageId, p);
+        } catch (Exception e) {}
 
         bufDescriptor[fr].setClean();
     }
@@ -265,10 +312,8 @@ public class BufMgr implements GlobalConst {
      * Used to flush all dirty pages in the buffer pool to disk *
      */
     public void flushAllPages() {
-        System.out.println("\n===========flushAllPage===========");
-
         for (int i = 0; i < numBuffers; i++){
-            if (fm.indicator[i] == true)
+            if (bufDescriptor[i] != null)
                 try {
                     flushPage(bufDescriptor[i].getPageNo());
                 } catch (ChainException e) {}
@@ -279,27 +324,25 @@ public class BufMgr implements GlobalConst {
     /**
      * Returns the total number of buffer frames. */
     public int getNumBuffers() {
-        return fm.numbufs;
+        return numBuffers;
     }
 
     /**
      * Returns the total number of unpinned buffer frames. */
     public int getNumUnpinned() {
-//        System.out.println("numbuf = "+numBuffers);
-//        System.out.println(fm.numAvailableFr+ numBuffers);
-        //int naf = fm.getNumAvailableFr();
-        //System.out.println("naf = "+naf);
-//        int naf = 0;
-//        for (int i = 0; i< numBuffers; i++){
-//            if (bufDescriptor[i] == null){
-//                naf = naf+1;
-//            }
-//            else if (bufDescriptor[i].getPin_count()==0){
-//                //System.out.println("i = "+i);
-//                naf = naf+1;
-//            }
-//        }
-        return fm.numAvailableFr;
+        int ret = 0;
+        for(int i = 0; i< numBuffers; i++){
+            if(bufDescriptor[i] == null){
+                ret++;
+            }
+            else if (bufDescriptor[i].getPin_count()==0){
+                ret++;
+            }
+        }
+        return ret;
+
+
+
     }
 
 }
