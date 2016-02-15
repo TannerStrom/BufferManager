@@ -137,7 +137,9 @@ class BMDriver extends TestDriver implements GlobalConst {
 		// written during this test.
 		boolean status = OK;
 		int numPages = Minibase.BufferManager.getNumUnpinned() + 1;
-		Page pg = new Page(); 
+		System.out.println("numPages = "+numPages);
+		System.out.println("numPages = "+numPages);
+		Page pg = new Page();
 		PageId pid; 
 		PageId lastPid;
 		PageId firstPid = new PageId(); 
